@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillsMint</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Razorpay Checkout SDK -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    /* Midnight Pro Theme Variables */
+    :root {
+      --primary-color: #bb86fc; /* Purple */
+      --secondary-color: #03dac6; /* Teal */
+      --background-color: #121212; /* Dark Gray/Black */
+      --surface-color: #1e1e1e; /* Slightly lighter dark gray */
+      --on-background-color: #e0e0e0; /* Light gray text on dark background */
+      --on-surface-color: #e0e0e0; /* Softer off-white for general text */
+      --error-color: #cf6679; /* Reddish error */
+      --box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      --input-border-color: #444444;
+      --button-hover-bg: #9b5cdb;
+      --button-active-bg: #8747c0;
+      --placeholder-color: #888888; /* Placeholder text color */
+      --input-background-dark: #2a2a2a; /* Darker grey for input fields */
+      --input-text-light: #cccccc; /* Lighter text for dark input fields */
+      --blue-shade: rgba(52, 152, 219, 0.4); /* Subtle blue shading */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      padding: 20px;
+      max-width: 1000px;
+      margin: auto;
+      background-color: var(--background-color);
+      color: var(--on-background-color);
+      transition: background-color 0.5s ease, color 0.5s ease;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* General Styling for Inputs, Selects, Buttons, Tables */
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="email"],
+    input[type="password"], /* Added for password input */
+    select {
+      background-color: var(--input-background-dark); /* Darker input background */
+      color: var(--input-text-light); /* Lighter text for readability */
+      border: 1px solid var(--input-border-color);
+      border-radius: 0.375rem; /* rounded-md */
+      padding: 0.5rem; /* p-2 */
+      width: 100%; /* Ensure inputs take full width of their container */
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 0 0 0 transparent; /* Initial transparent shadow */
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    input[type="email"]:focus,
+    input[type="password"]:focus, /* Added for password input */
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--blue-shade); /* Blue shading on focus */
+      border-color: transparent; /* Remove default border on focus */
+    }
+
+    /* Styling for placeholder text */
+    input::placeholder {
+      color: var(--placeholder-color);
+      opacity: 1; /* Ensures placeholder is visible in all browsers */
+    }
+
+    button {
+      background-color: var(--primary-color);
+      color: var(--on-surface-color);
+      font-weight: 600; /* font-semibold */
+      padding: 0.5rem 1rem; /* py-2 px-4 */
+      border-radius: 0.5rem; /* rounded-lg */
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), 0 0 0 0 transparent; /* Initial shadow + transparent blue shadow */
+      border: none; /* Ensure no default button border */
+    }
+
+    button:hover {
+      background-color: var(--button-hover-bg);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), 0 0 0 3px var(--blue-shade); /* Blue shade on hover */
+    }
+
+    button:active {
+      background-color: var(--button-active-bg);
+      transform: translateY(0);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), 0 0 0 3px var(--blue-shade); /* Blue shade on active */
+    }
+
+    /* Specific Layout and Component Styling */
+    .header {
+      @apply flex flex-wrap justify-between items-center mb-6;
+    }
+
+    .info-section {
+      @apply bg-surface-color rounded-xl shadow-lg p-6 mb-6;
+      box-shadow: var(--box-shadow);
+    }
+
+    .section-title {
+      @apply text-primary-color text-2xl font-bold mb-4 border-b border-primary-color pb-2;
+    }
+
+    .logo-upload {
+      @apply text-center mb-6;
+    }
+
+    #logoPreview {
+      @apply w-24 h-24 object-contain mt-4 mx-auto rounded-md border border-input-border-color;
+      display: none;
+    }
+
+    #itemTable {
+      @apply w-full border-collapse mb-6 bg-surface-color rounded-xl shadow-lg overflow-hidden;
+      box-shadow: var(--box-shadow);
+    }
+
+    #itemTable th {
+      @apply bg-primary-color text-on-surface-color px-4 py-3 text-left font-semibold;
+    }
+
+    #itemTable td {
+      @apply px-4 py-3 border-b border-input-border-color;
+    }
+
+    #itemTable tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    #itemTable input {
+      /* Inputs within table should inherit their parent's background by default */
+      background-color: transparent; /* Keep transparent for table inputs */
+      color: var(--input-text-light); /* Ensure text is visible */
+      border: none;
+      padding: 0;
+      box-shadow: none;
+      outline: none;
+    }
+    
+    /* Ensure table inputs still show a focus ring */
+    #itemTable input:focus {
+        box-shadow: 0 0 0 2px var(--primary-color);
+    }
+
+
+    .summary {
+      @apply bg-surface-color rounded-xl shadow-lg p-6 mb-6;
+      box-shadow: var(--box-shadow);
+    }
+
+    .summary p {
+      @apply flex justify-between items-center mb-2;
+    }
+
+    .summary input {
+      /* Inputs in summary also get the new dark background and light text */
+      background-color: var(--input-background-dark);
+      color: var(--input-text-light);
+      text-align: right;
+      width: 6rem; /* w-24 */
+    }
+    
+    .summary input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--blue-shade); /* Blue shade on focus */
+      border-color: transparent;
+    }
+
+    .currency-symbol {
+      @apply ml-1 text-primary-color font-bold;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .header, .info-section, .summary, #itemTable { width: 100%; }
+      .info-section > div { flex-basis: 100%; margin-bottom: 20px; }
+      .info-section > div:last-child { margin-bottom: 0; }
+      .summary { margin-top: 20px !important; }
+    }
+
+    /* Styles for the authentication/subscription sections */
+    .auth-container, .subscription-container {
+      @apply bg-surface-color rounded-xl shadow-lg p-8 mb-6 text-center;
+      box-shadow: var(--box-shadow);
+      max-width: 400px;
+      margin: 50px auto;
+    }
+
+    .auth-container h2, .subscription-container h2 {
+      @apply text-primary-color text-3xl font-bold mb-6;
+    }
+
+    .auth-container input, .subscription-container input {
+      @apply mb-4;
+    }
+
+    .auth-container button, .subscription-container button {
+      @apply w-full mb-2;
+    }
+
+    .toggle-auth-mode {
+      @apply text-primary-color underline cursor-pointer text-sm mt-4;
+    }
+    
+    #userStatus {
+        @apply text-sm text-center my-4;
+    }
+  </style>
+</head>
+<body class="bg-background-color text-on-background-color">
+  <div class="text-center mb-6">
+    <h2 class="text-4xl font-extrabold text-primary-color">BillsMint</h2>
+  </div>
+
+  <div id="userStatus" class="flex flex-wrap justify-center items-center gap-4">
+    <span id="authStatusText">Loading...</span>
+    <button id="logoutButton" onclick="signOutUser()" style="display: none;" class="bg-error-color hover:bg-red-700 active:bg-red-800 text-on-surface-color text-sm py-1 px-3 rounded-md">Log Out</button>
+  </div>
+
+  <!-- Authentication Section -->
+  <div id="authSection" class="auth-container" style="display: none;">
+    <h2 id="authModeTitle">Login</h2>
+    <input type="email" id="authEmail" placeholder="Email">
+    <input type="password" id="authPassword" placeholder="Password">
+    <button id="authSubmitButton" onclick="handleAuth()">Login</button>
+    <p class="toggle-auth-mode" onclick="toggleAuthMode()">Don't have an account? Register</p>
+  </div>
+
+  <!-- Subscription Section -->
+  <div id="subscriptionSection" class="subscription-container" style="display: none;">
+    <h2>Subscribe to BillsMint</h2>
+    <p class="text-on-background-color mb-6">Unlock all features of BillsMint by subscribing!</p>
+    <button onclick="subscribeUser()" class="bg-secondary-color hover:bg-teal-700 active:bg-teal-800">Subscribe Now!</button>
+  </div>
+
+  <!-- Main Invoice Tool Content -->
+  <div id="invoiceToolContent" style="display: none;">
+    <div class="header">
+      <h1 class="text-3xl font-bold text-primary-color" data-translate="title"></h1>
+      <div class="flex flex-wrap gap-4 mt-4 md:mt-0">
+        <div>
+          <label for="language" class="block text-sm font-medium">Language:</label>
+          <select id="language" onchange="changeLanguage()">
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="as">Assamese</option>
+          </select>
+        </div>
+        <div>
+          <label for="currency" class="block text-sm font-medium">Currency:</label>
+          <select id="currency" onchange="updateCurrency()">
+            <option value="₹">INR</option>
+            <option value="$">USD</option>
+            <option value="€">EUR</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-section grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="logo-upload">
+        <h3 class="section-title">Logo</h3>
+        <input type="file" id="logoUpload" accept="image/*">
+        <img id="logoPreview" src="#" alt="Logo Preview">
+      </div>
+
+      <div>
+        <h3 class="section-title" id="customerInfoTitle" data-translate="customerInfo">Customer Info</h3>
+        <div class="space-y-4">
+          <input type="text" id="customerName" data-translate-placeholder="customerNamePlaceholder" placeholder="Customer Name">
+          <input type="text" id="customerPhone" data-translate-placeholder="customerPhonePlaceholder" placeholder="Phone Number">
+          <input type="email" id="customerEmail" data-translate-placeholder="customerEmailPlaceholder" placeholder="Customer Email (optional)">
+          <input type="date" id="invoiceDate">
+        </div>
+      </div>
+    </div>
+
+    <table id="itemTable" class="min-w-full">
+      <thead>
+        <tr>
+          <th data-translate="itemName">Item Name</th>
+          <th data-translate="price" class="text-right">Price</th>
+          <th data-translate="quantity" class="text-center">Quantity</th>
+          <th data-translate="action" class="text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="text" class="item-name" placeholder="Item name" onchange="calculateSubtotal()"></td>
+          <td><input type="number" class="item-price text-right" placeholder="0" onchange="calculateSubtotal()"></td>
+          <td><input type="number" class="item-quantity text-center" placeholder="1" onchange="calculateSubtotal()"></td>
+          <td class="text-center">
+            <button onclick="removeRow(this)" class="bg-error-color hover:bg-red-700 active:bg-red-800 text-sm py-1 px-2">
+              Remove
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <button onclick="addItem()" data-translate="addItem" class="mb-6">Add Item</button>
+
+    <div class="summary">
+      <h3 class="section-title">Summary</h3>
+      <p><span data-translate="subtotal">Subtotal</span>: <span id="subtotal">0.00</span> <span class="currency-symbol">₹</span></p>
+      <p><span data-translate="tax">Tax %</span>: <input type="number" id="tax" value="18" onchange="updateTotals()"></p>
+      <p><span data-translate="discount">Discount %</span>: <input type="number" id="discount" value="0" onchange="updateTotals()"></p>
+      <p class="text-2xl font-bold mt-4"><span data-translate="total">Total</span>: <span id="total">0.00</span> <span class="currency-symbol">₹</span></p>
+    </div>
+
+    <div class="flex flex-wrap justify-center gap-4">
+      <button onclick="printInvoice()" data-translate="print">Print</button>
+      <button onclick="downloadPDF()" data-translate="download">Download</button>
+      <button onclick="shareWhatsApp()" data-translate="shareWhatsApp">Share on WhatsApp</button>
+      <button onclick="openHistoryModal()" class="bg-secondary-color hover:bg-teal-700 active:bg-teal-800 text-on-surface-color font-semibold py-2 px-4 rounded-lg shadow-lg cursor-pointer transition-all duration-300 ease-in-out">View History</button>
+    </div>
+  </div>
+
+  <!-- Custom message box for alerts -->
+  <div id="messageBox" style="
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 30px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  "></div>
+
+  <!-- History Modal -->
+  <div id="historyModal" style="
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+  ">
+    <div style="
+      background-color: var(--surface-color);
+      margin: 15% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 80%;
+      max-width: 600px;
+      box-shadow: var(--box-shadow);
+      position: relative;
+      color: var(--on-surface-color);
+    ">
+      <span class="close-button" onclick="closeHistoryModal()" style="
+        color: var(--on-background-color);
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      ">&times;</span>
+      <h2 class="section-title text-primary-color mb-4">Invoice History</h2>
+      <div id="historyContent" class="max-h-96 overflow-y-auto">
+        <!-- Invoices will be loaded here -->
+      </div>
+      <div class="flex justify-center mt-4">
+          <button onclick="exportHistoryToCSV()" class="bg-secondary-color hover:bg-teal-700 active:bg-teal-800 text-on-surface-color font-semibold py-2 px-4 rounded-lg shadow-lg cursor-pointer transition-all duration-300 ease-in-out">Export to CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Supabase imports
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    // Supabase Configuration (Provided by User)
+    const SUPABASE_URL = 'https://fwdqnpmvkohgkvgvwvkp.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZHFucG12a29oZ2t2Z3Z3dmtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk4NDI3NTEsImV4cCI6MjA2NTQxODc1MX0.mjL8dw2IneWWDulFzAmvBqCB1las4SmPWl-PBnq19xU';
+
+    // Razorpay Configuration (Provided by User)
+    // NOTE: Razorpay Secret Key (XvDi9EE0yz79sQq1tX2LACdI) MUST NEVER BE EXPOSED ON THE CLIENT-SIDE.
+    // This example uses only the Key ID for client-side checkout initiation.
+    // For production-ready recurring subscriptions and secure webhook handling, a backend is required.
+    const RAZORPAY_KEY_ID = 'rzp_live_ZVCqfubc06rebF';
+    // IMPORTANT: You need to create a Subscription Plan in Razorpay Dashboard and provide its ID here.
+    const RAZORPAY_PLAN_ID = 'plan_Qhz7GAgneO2xKH'; // Updated with the provided Plan ID
+
+    // Supabase client instance
+    let supabase = null;
+    let currentUserId = null;
+    let isUserSubscribed = false;
+    let isLoginMode = true; // State for login/register toggle
+
+    // DOM Elements
+    const authSection = document.getElementById('authSection');
+    const subscriptionSection = document.getElementById('subscriptionSection');
+    const invoiceToolContent = document.getElementById('invoiceToolContent');
+    const authModeTitle = document.getElementById('authModeTitle');
+    const authSubmitButton = document.getElementById('authSubmitButton');
+    const authEmailInput = document.getElementById('authEmail');
+    const authPasswordInput = document.getElementById('authPassword');
+    const authStatusText = document.getElementById('authStatusText');
+    const logoutButton = document.getElementById('logoutButton');
+
+    // Translations object
+    window.translations = {
+      en: {
+        title: "Invoice", /* Removed "Midnight Pro" */
+        customerInfo: "Customer Info",
+        customerNamePlaceholder: "Customer Name",
+        customerPhonePlaceholder: "Phone Number",
+        customerEmailPlaceholder: "Customer Email (optional)",
+        itemName: "Item Name",
+        itemNamePlaceholder: "Item name",
+        price: "Price",
+        quantity: "Quantity",
+        action: "Action",
+        addItem: "Add Item",
+        remove: "Remove",
+        subtotal: "Subtotal",
+        tax: "Tax %",
+        discount: "Discount %",
+        total: "Total",
+        print: "Print",
+        download: "Download",
+        shareWhatsApp: "Share on WhatsApp",
+        thankYou: "Thank you for your business!"
+      },
+      hi: {
+        title: "चालान", /* Removed "मिडनाइट प्रो" */
+        customerInfo: "ग्राहक की जानकारी",
+        customerNamePlaceholder: "ग्राहक का नाम",
+        customerPhonePlaceholder: "फ़ोन नंबर",
+        customerEmailPlaceholder: "ग्राहक ईमेल (वैकल्पिक)",
+        itemName: "आइटम का नाम",
+        itemNamePlaceholder: "आइटम का नाम",
+        price: "कीमत",
+        quantity: "मात्रा",
+        action: "कार्रवाई",
+        addItem: "आइटम जोड़ें",
+        remove: "हटाएं",
+        subtotal: "उप-योग",
+        tax: "कर %",
+        discount: "छूट %",
+        total: "कुल",
+        print: "छापें",
+        download: "डाउनलोड करें",
+        shareWhatsApp: "व्हाट्सएप पर साझा करें",
+        thankYou: "आपके व्यापार के लिए धन्यवाद!"
+      },
+      as: {
+        title: "ইনভয়েচ", /* Removed "মিডনাইট প্রো" */
+        customerInfo: "গ্ৰাহকৰ তথ্য",
+        customerNamePlaceholder: "গ্ৰাহকৰ নাম",
+        customerPhonePlaceholder: "ফোন নম্বৰ",
+        customerEmailPlaceholder: "গ্ৰাহকৰ ইমেইল (ঐচ্ছিক)",
+        itemName: "বস্তুৰ নাম",
+        itemNamePlaceholder: "বস্তুৰ নাম",
+        price: "দাম",
+        quantity: "পৰিমাণ",
+        action: "ক্ৰিয়া",
+        addItem: "বস্তু যোগ কৰক",
+        remove: "আঁতৰাওক",
+        subtotal: "উপ-মুঠ",
+        tax: "কৰ %",
+        discount: "ৰেহাই %",
+        total: "মুঠ",
+        print: "প্ৰিণ্ট কৰক",
+        download: "ডাউনল'ড কৰক",
+        shareWhatsApp: "ৱাটছএপত শ্বেয়াৰ কৰক",
+        thankYou: "আপোনাৰ ব্যৱসায়ৰ বাবে ধন্যবাদ!"
+      }
+    };
+
+
+    /**
+     * Initializes Supabase client and sets up authentication state listener.
+     * Also creates necessary tables if they don't exist (for development convenience).
+     */
+    async function initializeSupabase() {
+        try {
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // Listen for auth state changes
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                if (session) {
+                    currentUserId = session.user.id;
+                    authStatusText.textContent = `Logged in as: ${session.user.email || 'Anonymous'} (ID: ${currentUserId.substring(0, 8)}...)`;
+                    logoutButton.style.display = 'inline-block';
+                    await checkSubscriptionStatus();
+                } else {
+                    currentUserId = null;
+                    isUserSubscribed = false;
+                    authStatusText.textContent = "Not logged in.";
+                    logoutButton.style.display = 'none';
+                    showUI(); // Show auth section if not logged in
+                }
+            });
+
+            // Try to get initial session in case of page reload
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUserId = session.user.id;
+                await checkSubscriptionStatus();
+            } else {
+                showUI();
+            }
+
+            // Create necessary tables if they don't exist (for initial setup convenience)
+            // In a real app, you'd manage migrations in Supabase dashboard or CLI.
+            await createTablesIfNotExists();
+
+        } catch (error) {
+            console.error('Error initializing Supabase:', error.message);
+            showMessage('Failed to initialize Supabase. Some features may not work.', 'error');
+            // Fallback to offline mode if Supabase fails
+            currentUserId = crypto.randomUUID(); // Anonymous ID
+            authStatusText.textContent = "Supabase Init Failed (Offline)";
+            showUI(); // Still attempt to show basic UI
+        }
+    }
+
+    /**
+     * Creates 'invoices' and 'subscriptions' tables if they don't exist.
+     * This is for convenience during initial development. In production,
+     * you'd manage your database schema via Supabase migrations.
+     */
+    async function createTablesIfNotExists() {
+        // SQL for invoices table
+        const createInvoicesTableSql = `
+            CREATE TABLE IF NOT EXISTS public.invoices (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES auth.users(id),
+                customer_name TEXT NOT NULL,
+                customer_phone TEXT,
+                customer_email TEXT,
+                invoice_date DATE,
+                currency TEXT,
+                subtotal NUMERIC(10, 2),
+                tax NUMERIC(5, 2),
+                discount NUMERIC(5, 2),
+                total NUMERIC(10, 2),
+                items JSONB,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+        `;
+        
+        // SQL for subscriptions table
+        const createSubscriptionsTableSql = `
+            CREATE TABLE IF NOT EXISTS public.subscriptions (
+                user_id UUID PRIMARY KEY REFERENCES auth.users(id),
+                is_subscribed BOOLEAN DEFAULT FALSE,
+                razorpay_subscription_id TEXT,
+                current_plan_id TEXT,
+                ends_at TIMESTAMP WITH TIME ZONE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+        `;
+
+        try {
+            await supabase.rpc('execute_sql', { sql_query: createInvoicesTableSql });
+            await supabase.rpc('execute_sql', { sql_query: createSubscriptionsTableSql });
+            console.log("Tables checked/created successfully.");
+        } catch (error) {
+            console.error("Error creating tables:", error.message);
+            showMessage("Database schema setup failed. Please check Supabase permissions.", "error");
+        }
+    }
+
+    /**
+     * Toggles between login and registration mode for the auth section.
+     */
+    window.toggleAuthMode = function() {
+      isLoginMode = !isLoginMode;
+      authModeTitle.textContent = isLoginMode ? "Login" : "Register";
+      authSubmitButton.textContent = isLoginMode ? "Login" : "Register";
+      document.querySelector('.toggle-auth-mode').textContent = isLoginMode ? "Don't have an account? Register" : "Already have an account? Login";
+    }
+
+    /**
+     * Handles user authentication (login or registration).
+     */
+    window.handleAuth = async function() {
+      const email = authEmailInput.value;
+      const password = authPasswordInput.value;
+
+      if (!email || !password) {
+        showMessage('Please enter both email and password.', 'warning');
+        return;
+      }
+
+      try {
+        let response;
+        if (isLoginMode) {
+          response = await supabase.auth.signInWithPassword({ email, password });
+          showMessage('Logged in successfully!', 'success');
+        } else {
+          response = await supabase.auth.signUp({ email, password });
+          if (response.data.user && !response.data.session) {
+            showMessage('Registration successful! Please check your email to confirm your account.', 'info');
+            return; // Exit if email confirmation is required and no session created
+          }
+          showMessage('Account created successfully!', 'success');
+        }
+        if (response.error) throw response.error;
+        // UI will be updated by onAuthStateChange listener
+      } catch (error) {
+        console.error('Authentication error:', error);
+        showMessage(`Auth Error: ${error.message}`, 'error');
+      }
+    }
+
+    /**
+     * Signs out the current user.
+     */
+    window.signOutUser = async function() {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            showMessage('Logged out successfully.', 'info');
+            // UI will be updated by onAuthStateChange listener
+        } catch (error) {
+            console.error('Error signing out:', error.message);
+            showMessage(`Logout Error: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Checks the user's subscription status from Supabase.
+     */
+    async function checkSubscriptionStatus() {
+        if (!supabase || !currentUserId) {
+            isUserSubscribed = false;
+            showUI();
+            return;
+        }
+        try {
+            const { data, error } = await supabase
+                .from('subscriptions')
+                .select('is_subscribed')
+                .eq('user_id', currentUserId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') { // PGRST116 means no row found, which is fine
+                throw error;
+            }
+
+            if (data && data.is_subscribed) {
+                isUserSubscribed = true;
+                showMessage('Welcome back! You are subscribed.', 'success');
+            } else {
+                isUserSubscribed = false;
+                showMessage('Please subscribe to use all features.', 'info');
+            }
+            showUI();
+        } catch (error) {
+            console.error('Error checking subscription status:', error.message);
+            isUserSubscribed = false; // Assume not subscribed on error
+            showMessage('Error checking subscription. Please try again.', 'error');
+            showUI();
+        }
+    }
+
+    /**
+     * Initiates Razorpay subscription.
+     * In a real production app, the order creation should happen on the backend
+     * to prevent exposing Razorpay Secret Key.
+     */
+    window.subscribeUser = async function() {
+      if (!supabase || !currentUserId) {
+        showMessage('Cannot subscribe: Not logged in or Supabase not ready.', 'warning');
+        return;
+      }
+      if (!RAZORPAY_PLAN_ID || RAZORPAY_PLAN_ID === 'plan_YOUR_RAZORPAY_PLAN_ID_HERE') {
+          showMessage('Razorpay Plan ID is not configured. Please update RAZORPAY_PLAN_ID in the code.', 'error');
+          return;
+      }
+
+      // In a production app, you would make an API call to your backend here
+      // to create a Razorpay subscription, passing the user ID and plan ID.
+      // The backend would use your Razorpay Secret Key to create the subscription
+      // and return the subscription ID to the client.
+
+      // For this client-side example, we'll simulate it by directly opening checkout
+      // with a pre-configured plan. This IS NOT secure for production.
+      
+      const userEmail = (await supabase.auth.getUser()).data.user.email;
+      const userName = (await supabase.auth.getUser()).data.user.user_metadata?.full_name || 'Customer';
+
+      const options = {
+          key: RAZORPAY_KEY_ID, // Your Key ID
+          name: "BillsMint Subscription",
+          description: "BillsMint Premium Plan",
+          image: "https://placehold.co/100x100/bb86fc/ffffff?text=BM", // Placeholder image
+          subscription_id: null, // This will be set if you create the subscription on backend first
+          plan_id: RAZORPAY_PLAN_ID,
+          notes: {
+              user_id: currentUserId,
+              app_id: 'BillsMint' // You might use a global __app_id variable if available
+          },
+          theme: {
+              color: "#bb86fc" // Primary color of BillsMint theme
+          },
+          handler: async function (response) {
+              // This handler is called upon successful payment
+              showMessage('Payment successful! Updating subscription status...', 'success');
+              // IMPORTANT: In a production app, you would verify this payment on your backend
+              // using Razorpay's API and webhooks. Only after backend verification,
+              // update the user's subscription status in Supabase.
+              try {
+                  const { data, error } = await supabase
+                      .from('subscriptions')
+                      .upsert({ 
+                          user_id: currentUserId, 
+                          is_subscribed: true, 
+                          razorpay_subscription_id: response.razorpay_subscription_id,
+                          current_plan_id: RAZORPAY_PLAN_ID,
+                          updated_at: new Date().toISOString()
+                      }, { onConflict: 'user_id' }); // Use onConflict to update if user_id exists
+                  if (error) throw error;
+                  isUserSubscribed = true;
+                  showMessage('You are now subscribed to BillsMint!', 'success');
+                  showUI(); // Update UI to show invoice tool
+              } catch (updateError) {
+                  console.error('Error updating subscription status in Supabase:', updateError.message);
+                  showMessage('Subscription status update failed. Contact support.', 'error');
+              }
+          },
+          modal: {
+            ondismiss: function() {
+              showMessage('Payment process cancelled.', 'info');
+            }
+          },
+          prefill: {
+              email: userEmail,
+              name: userName
+          }
+      };
+
+      const rzp1 = new Razorpay(options);
+      rzp1.open();
+    }
+
+
+    /**
+     * Controls which main UI section is displayed based on auth/subscription status.
+     */
+    function showUI() {
+        if (currentUserId) { // User is authenticated (or anonymous with a UUID, though we focus on logged-in)
+            // Note: Supabase anonymous users have a UUID, but we gate features for registered users.
+            // For this app, if currentUserId exists, we assume logged-in for purposes of showing UI.
+            // Actual gating is by `isUserSubscribed`.
+            if (isUserSubscribed) {
+                authSection.style.display = 'none';
+                subscriptionSection.style.display = 'none';
+                invoiceToolContent.style.display = 'block'; // Show invoice tool
+            } else {
+                authSection.style.display = 'none';
+                subscriptionSection.style.display = 'block'; // Show subscription prompt
+                invoiceToolContent.style.display = 'none';
+            }
+        } else { // User is not authenticated
+            authSection.style.display = 'block'; // Show login/register
+            subscriptionSection.style.display = 'none';
+            invoiceToolContent.style.display = 'none';
+        }
+    }
+
+    /**
+     * Updates the currency symbol displayed in the summary.
+     */
+    window.updateCurrency = function() {
+      const currency = document.getElementById("currency").value;
+      document.querySelectorAll(".currency-symbol").forEach(el => el.textContent = currency);
+      updateTotals(); // Recalculate totals to reflect currency change if needed
+    }
+
+    /**
+     * Calculates the subtotal of all items in the table.
+     */
+    window.calculateSubtotal = function() {
+      let subtotal = 0;
+      document.querySelectorAll("#itemTable tbody tr").forEach(row => {
+        const priceInput = row.querySelector(".item-price");
+        const quantityInput = row.querySelector(".item-quantity");
+
+        const price = parseFloat(priceInput.value) || 0;
+        const quantity = parseFloat(quantityInput.value) || 0;
+
+        subtotal += price * quantity;
+      });
+      document.getElementById("subtotal").textContent = subtotal.toFixed(2);
+      updateTotals();
+    }
+
+    /**
+     * Updates the total amount based on subtotal, tax, and discount.
+     */
+    window.updateTotals = function() {
+      const subtotal = parseFloat(document.getElementById("subtotal").textContent) || 0;
+      const taxInput = document.getElementById("tax");
+      const discountInput = document.getElementById("discount");
+
+      const tax = parseFloat(taxInput.value) || 0;
+      const discount = parseFloat(discountInput.value) || 0;
+
+      const total = subtotal * (1 + tax / 100) - (subtotal * discount / 100);
+      document.getElementById("total").textContent = total.toFixed(2);
+    }
+
+    /**
+     * Adds a new item row to the invoice table.
+     */
+    window.addItem = function() {
+      const tbody = document.querySelector("#itemTable tbody");
+      const row = document.createElement("tr");
+      const lang = document.getElementById('language').value;
+      const removeText = window.translations[lang]?.remove || 'Remove';
+      const itemNamePlaceholder = window.translations[lang]?.itemNamePlaceholder || 'Item name';
+
+      row.innerHTML = `
+        <td><input type="text" class="item-name" placeholder="${itemNamePlaceholder}" onchange="calculateSubtotal()"></td>
+        <td><input type="number" class="item-price text-right" placeholder="0" onchange="calculateSubtotal()"></td>
+        <td><input type="number" class="item-quantity text-center" placeholder="1" onchange="calculateSubtotal()"></td>
+        <td class="text-center">
+          <button onclick="removeRow(this)" class="bg-error-color hover:bg-red-700 active:bg-red-800 text-sm py-1 px-2">
+            ${removeText}
+          </button>
+        </td>
+      `;
+      tbody.appendChild(row);
+      calculateSubtotal(); // Recalculate after adding a new row
+    }
+
+    /**
+     * Removes an item row from the invoice table.
+     * @param {HTMLElement} button - The remove button clicked.
+     */
+    window.removeRow = function(button) {
+      const row = button.closest("tr");
+      row.remove();
+      calculateSubtotal(); // Recalculate after removing a row
+    }
+
+    /**
+     * Triggers the browser's print dialog for the current page.
+     */
+    window.printInvoice = function() {
+      window.print();
+    }
+
+    /**
+     * Handles the logo upload and displays a preview.
+     */
+    document.getElementById('logoUpload').addEventListener('change', function(event) {
+      const [file] = event.target.files;
+      if (file) {
+        document.getElementById('logoPreview').src = URL.createObjectURL(file);
+        document.getElementById('logoPreview').style.display = 'block';
+      }
+    });
+
+    /**
+     * Changes the language of the UI elements based on the selected language.
+     */
+    window.changeLanguage = function() {
+      const lang = document.getElementById('language').value;
+      const elements = document.querySelectorAll('[data-translate]');
+      
+      elements.forEach(element => {
+        const key = element.getAttribute('data-translate');
+        if (window.translations[lang] && window.translations[lang][key]) {
+          element.textContent = window.translations[lang][key];
+        } else if (window.translations['en'][key]) {
+          // Fallback to English if translation not available for the specific key
+          element.textContent = window.translations['en'][key];
+        }
+      });
+
+      // Update placeholders specifically for customer info and item names
+      document.querySelectorAll('[data-translate-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-translate-placeholder');
+        if (window.translations[lang] && window.translations[lang][key]) {
+          el.placeholder = window.translations[lang][key];
+        } else if (window.translations['en'][key]) {
+          el.placeholder = window.translations['en'][key];
+        }
+      });
+
+      document.querySelectorAll('.item-name').forEach(el => {
+        el.placeholder = window.translations[lang]?.itemNamePlaceholder || 'Item name';
+      });
+
+      // Update the remove button text on existing rows
+      document.querySelectorAll('#itemTable tbody button').forEach(button => {
+        button.textContent = window.translations[lang]?.remove || 'Remove';
+      });
+    }
+
+    /**
+     * Prepares and validates invoice data from the form.
+     * @returns {Object|boolean} Invoice data object or false if validation fails.
+     */
+    window.prepareInvoiceData = function() {
+      try {
+        const customerName = document.getElementById('customerName').value.trim();
+        if (!customerName) {
+          showMessage('Please enter a customer name.', 'warning');
+          return false;
+        }
+
+        const items = Array.from(document.querySelectorAll('#itemTable tbody tr'))
+          .map(row => {
+            const name = (row.querySelector('.item-name')?.value || 'Item').trim();
+            const price = Math.max(0, parseFloat(row.querySelector('.item-price')?.value) || 0);
+            const quantity = Math.max(1, parseFloat(row.querySelector('.item-quantity')?.value) || 1);
+            return {
+              name: name || 'Item',
+              price: price,
+              quantity: quantity,
+              total: price * quantity
+            };
+          })
+          .filter(item => item.name && (item.price > 0 || item.quantity > 0)); // Filter out empty or zero-value items
+
+        if (items.length === 0) {
+          showMessage('Please add at least one valid item to the invoice.', 'warning');
+          return false;
+        }
+
+        const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+        const taxRate = Math.max(0, parseFloat(document.getElementById('tax').value) || 0);
+        const discount = Math.max(0, parseFloat(document.getElementById('discount').value) || 0);
+
+        const taxAmount = (subtotal * taxRate) / 100;
+        const total = subtotal + taxAmount - (subtotal * discount / 100); // Apply discount on subtotal
+
+        return {
+          customer_name: customerName,
+          customer_phone: (document.getElementById('customerPhone').value || '').trim(),
+          customer_email: (document.getElementById('customerEmail').value || '').trim(),
+          invoice_date: (document.getElementById('invoiceDate').value || new Date().toISOString().split('T')[0]),
+          currency: document.getElementById('currency').value || '₹',
+          subtotal: parseFloat(subtotal.toFixed(2)), // Convert back to number for Supabase
+          tax: parseFloat(taxRate.toFixed(2)),
+          discount: parseFloat(discount.toFixed(2)),
+          total: parseFloat(total.toFixed(2)),
+          items: items // This will be stored as JSONB
+        };
+
+      } catch (error) {
+        console.error('Error preparing invoice data:', error);
+        showMessage('An error occurred while preparing the invoice. Please try again.', 'error');
+        return false;
+      }
+    }
+
+    /**
+     * Saves invoice data to Supabase.
+     * @param {Object} invoiceData - The invoice data to save.
+     * @returns {Promise<boolean>} True if saved successfully, false otherwise.
+     */
+    window.saveInvoiceToSupabase = async function(invoiceData) {
+        if (!supabase || !currentUserId) {
+            showMessage('Database not ready or user not authenticated. Invoice not saved.', 'warning');
+            return false;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('invoices')
+                .insert([{ ...invoiceData, user_id: currentUserId }]);
+
+            if (error) throw error;
+            showMessage('Invoice saved to history!', 'success');
+            return true;
+        }
+        catch (error) {
+            console.error('Error saving invoice to Supabase:', error.message);
+            showMessage('Error saving invoice to history. Check console for details.', 'error');
+            return false;
+        }
+    }
+
+    /**
+     * Handles the PDF download process.
+     */
+    window.downloadPDF = async function() {
+      if (!isUserSubscribed) {
+        showMessage('Please subscribe to download invoices.', 'warning');
+        return;
+      }
+
+      const invoiceData = prepareInvoiceData();
+      if (!invoiceData) return;
+
+      // Attempt to save the invoice to Supabase
+      const saved = await saveInvoiceToSupabase(invoiceData);
+      if (!saved) {
+        console.warn('Invoice not saved to history, proceeding with PDF download.');
+      }
+
+      const pdfContainer = document.createElement('div');
+      pdfContainer.style.padding = '10mm';
+      pdfContainer.style.width = '190mm'; // Slightly more compact for A4
+      pdfContainer.style.fontFamily = 'Inter, sans-serif';
+      pdfContainer.style.fontSize = '9pt';
+      pdfContainer.style.color = '#000'; // Ensure black text for PDF output
+
+      const logo = document.getElementById('logoPreview');
+      let logoHTML = '';
+      if (logo && logo.style.display !== 'none' && logo.src !== '#') {
+        logoHTML = `
+          <div style="text-align: center; margin-bottom: 5mm;">
+            <img src="${logo.src}" style="max-height: 60px; max-width: 150px; object-fit: contain;">
+          </div>`;
+      }
+
+      pdfContainer.innerHTML = `
+        <div style="text-align: right; margin-bottom: 5mm;">
+          <p style="color: #555; margin: 0; font-size: 8pt;">Invoice Date: ${invoiceData.invoice_date}</p>
+        </div>
+
+        ${logoHTML}
+
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 10mm;">
+          <!-- Customer Info -->
+          <div style="flex: 1; text-align: right; font-size: 9pt;">
+            <p style="color: #3498db; border-bottom: 1px solid #3498db; padding-bottom: 3px; display: inline-block; margin: 0 0 5px 0;">
+              ${window.translations[document.getElementById('language').value]?.customerInfo || 'Customer Info'}
+            </p>
+            <p style="margin: 3px 0;"><strong>${invoiceData.customer_name}</strong></p>
+            ${invoiceData.customer_phone ? `<p style="margin: 3px 0;">${invoiceData.customer_phone}</p>` : ''}
+            ${invoiceData.customer_email ? `<p style="margin: 3px 0;">${invoiceData.customer_email}</p>` : ''}
+          </div>
+        </div>
+
+        <!-- Invoice Items Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10mm; font-size: 9pt;">
+          <thead>
+            <tr style="background-color: #f0f0f0;">
+              <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">${window.translations[document.getElementById('language').value]?.itemName || 'Item Name'}</th>
+              <th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd; width: 15%;">Unit Price</th>
+              <th style="text-align: center; padding: 8px; border-bottom: 1px solid #ddd; width: 10%;">Qty</th>
+              <th style="text-align: right; padding: 8px; border-bottom: 1px solid #ddd; width: 15%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoiceData.items.map(item => `
+              <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee; word-wrap: break-word;">${item.name}</td>
+                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">${invoiceData.currency} ${item.price.toFixed(2)}</td>
+                <td style="text-align: center; padding: 8px; border-bottom: 1px solid #eee;">${item.quantity}</td>
+                <td style="text-align: right; padding: 8px; border-bottom: 1px solid #eee;">${invoiceData.currency} ${item.total.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <div style="width: 300px; margin-left: auto; border: 1px solid #ddd; padding: 10px; border-radius: 5px; background-color: #f9f9f9; font-size: 9pt;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="text-align: right; padding: 5px;">${window.translations[document.getElementById('language').value]?.subtotal || 'Subtotal'}:</td>
+              <td style="text-align: right; padding: 5px;">${invoiceData.currency} ${invoiceData.subtotal.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td style="text-align: right; padding: 5px;">${window.translations[document.getElementById('language').value]?.tax || 'Tax %'} (${invoiceData.tax}%):</td>
+              <td style="text-align: right; padding: 5px;">${invoiceData.currency} ${((invoiceData.subtotal * invoiceData.tax) / 100).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td style="text-align: right; padding: 5px;">${window.translations[document.getElementById('language').value]?.discount || 'Discount %'} (${invoiceData.discount}%):</td>
+              <td style="text-align: right; padding: 5px;">${invoiceData.currency} ${((invoiceData.subtotal * invoiceData.discount) / 100).toFixed(2)}</td>
+            </tr>
+            <tr style="font-weight: bold; border-top: 1px solid #ddd;">
+              <td style="text-align: right; padding: 8px 5px; font-size: 11pt;">${window.translations[document.getElementById('language').value]?.total || 'Total'}:</td>
+              <td style="text-align: right; padding: 8px 5px; font-size: 11pt;">${invoiceData.currency} ${invoiceData.total.toFixed(2)}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- Thank You Note -->
+        <div style="margin-top: 15mm; text-align: center; color: #777; font-style: italic; font-size: 8pt; padding-top: 5mm; border-top: 1px dashed #ddd;">
+          <p style="margin: 0;">${window.translations[document.getElementById('language').value]?.thankYou || 'Thank you for your business!'}</p>
+        </div>
+      `;
+
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px'; // Off-screen
+      tempContainer.style.width = '210mm'; // A4 width
+      tempContainer.style.padding = '0';
+      tempContainer.style.margin = '0';
+      tempContainer.appendChild(pdfContainer);
+      document.body.appendChild(tempContainer);
+
+      const opt = {
+        margin: [10, 10, 10, 10], // Top, Left, Bottom, Right in mm
+        filename: `invoice_${invoiceData.customer_name.replace(/ /g, '_')}_${new Date().getTime()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          logging: false,
+          useCORS: true,
+          allowTaint: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 210 * 3.779528, // A4 width in pixels at 300dpi
+          windowHeight: 297 * 3.779528 // A4 height in pixels at 300dpi
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf()
+        .set(opt)
+        .from(pdfContainer)
+        .save()
+        .then(() => {
+          document.body.removeChild(tempContainer);
+        })
+        .catch(err => {
+          console.error('Error generating PDF:', err);
+          document.body.removeChild(tempContainer);
+          showMessage('Error generating PDF. Please try again. Check console for details.', 'error');
+        });
+    }
+
+    /**
+     * Shares the invoice summary via WhatsApp.
+     */
+    window.shareWhatsApp = function() {
+      if (!isUserSubscribed) {
+        showMessage('Please subscribe to share invoices.', 'warning');
+        return;
+      }
+      const invoiceData = prepareInvoiceData();
+      if (!invoiceData) return;
+
+      let message = `Invoice for ${invoiceData.customer_name}:\n\n`;
+      invoiceData.items.forEach(item => {
+        message += `${item.name} (x${item.quantity}) - ${invoiceData.currency} ${item.total.toFixed(2)}\n`;
+      });
+      message += `\nSubtotal: ${invoiceData.currency} ${invoiceData.subtotal.toFixed(2)}\n`;
+      message += `Tax: ${invoiceData.tax}%\n`;
+      message += `Discount: ${invoiceData.discount}%\n`;
+      message += `Total: ${invoiceData.currency} ${invoiceData.total.toFixed(2)}\n\n`;
+      message += `Invoice Date: ${invoiceData.invoice_date}`;
+
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    }
+
+    /**
+     * Displays a custom message box instead of alert().
+     * @param {string} message - The message to display.
+     * @param {string} type - Type of message (e.g., 'info', 'warning', 'error', 'success').
+     */
+    window.showMessage = function(message, type = 'info') {
+      let messageBox = document.getElementById('messageBox');
+      if (!messageBox) {
+        messageBox = document.createElement('div');
+        messageBox.id = 'messageBox';
+        messageBox.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          padding: 15px 30px;
+          border-radius: 8px;
+          color: #fff;
+          font-weight: bold;
+          z-index: 1000;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+          opacity: 0;
+          transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+        `;
+        document.body.appendChild(messageBox);
+      }
+
+      let bgColor;
+      switch (type) {
+        case 'success': bgColor = '#28a745'; break;
+        case 'error': bgColor = '#dc3545'; break;
+        case 'warning': bgColor = '#ffc107'; messageBox.style.color = '#333'; break; // Darker text for warning
+        default: bgColor = '#007bff'; break;
+      }
+      messageBox.style.backgroundColor = bgColor;
+      messageBox.textContent = message;
+
+      messageBox.style.opacity = '1';
+      messageBox.style.transform = 'translateX(-50%) translateY(0)';
+
+      setTimeout(() => {
+        messageBox.style.opacity = '0';
+        messageBox.style.transform = 'translateX(-50%) translateY(-20px)';
+      }, 3000); // Hide after 3 seconds
+    }
+
+    /**
+     * Loads invoices from Supabase and displays them in a modal.
+     */
+    window.loadInvoices = async function() {
+        if (!isUserSubscribed) {
+            showMessage('Please subscribe to view invoice history.', 'warning');
+            document.getElementById('historyContent').innerHTML = '<p class="text-on-surface-color">Please subscribe to view history.</p>';
+            return;
+        }
+        if (!supabase || !currentUserId) {
+            console.warn('Cannot load invoices: Supabase not ready or user not authenticated.');
+            document.getElementById('historyContent').innerHTML = '<p class="text-on-surface-color">Cannot load history. Please ensure you are logged in.</p>';
+            return;
+        }
+
+        try {
+            const { data: invoices, error } = await supabase
+                .from('invoices')
+                .select('*')
+                .eq('user_id', currentUserId)
+                .order('created_at', { ascending: false }); // Order by creation date descending
+
+            if (error) throw error;
+
+            renderHistory(invoices);
+        } catch (error) {
+            console.error('Error loading invoices from Supabase:', error.message);
+            document.getElementById('historyContent').innerHTML = '<p class="text-on-surface-color">Error loading invoice history.</p>';
+            showMessage('Error loading invoice history. Check console for details.', 'error');
+        }
+    }
+
+    /**
+     * Renders the list of invoices in the history modal.
+     * @param {Array<Object>} invoices - Array of invoice data.
+     */
+    window.renderHistory = function(invoices) {
+        const historyContent = document.getElementById('historyContent');
+        if (!invoices || invoices.length === 0) {
+            historyContent.innerHTML = '<p class="text-on-surface-color">No invoices saved yet.</p>';
+            return;
+        }
+
+        historyContent.innerHTML = invoices.map(invoice => `
+            <div class="bg-background-color rounded-md p-4 mb-3 shadow-md border border-input-border-color">
+                <p class="text-primary-color font-semibold">${invoice.customer_name}</p>
+                <p>Total: ${invoice.currency} ${invoice.total.toFixed(2)}</p>
+                <p class="text-sm text-gray-400">Date: ${new Date(invoice.created_at).toLocaleDateString()}</p>
+                <button onclick="viewInvoiceDetails('${invoice.id}')" class="mt-2 bg-secondary-color hover:bg-teal-700 active:bg-teal-800 text-on-surface-color text-sm py-1 px-3 rounded-md">View Details</button>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Views details of a specific invoice from Supabase.
+     * @param {string} invoiceId - The ID of the invoice to view.
+     */
+    window.viewInvoiceDetails = async function(invoiceId) {
+        if (!isUserSubscribed) {
+            showMessage('Please subscribe to view invoice details.', 'warning');
+            return;
+        }
+        if (!supabase || !currentUserId) {
+            showMessage('Database not ready or user not authenticated.', 'warning');
+            return;
+        }
+        try {
+            const { data: invoice, error } = await supabase
+                .from('invoices')
+                .select('*')
+                .eq('id', invoiceId)
+                .eq('user_id', currentUserId) // Ensure user can only view their own invoices
+                .single();
+
+            if (error) throw error;
+            if (!invoice) {
+                showMessage('Invoice not found or you do not have permission to view it.', 'error');
+                return;
+            }
+            
+            let detailsHtml = `
+                <h4 class="text-primary-color text-lg font-bold mb-2">Invoice for ${invoice.customer_name}</h4>
+                <p><strong>Date:</strong> ${new Date(invoice.created_at).toLocaleDateString()}</p>
+                <p><strong>Email:</strong> ${invoice.customer_email || 'N/A'}</p>
+                <p><strong>Phone:</strong> ${invoice.customer_phone || 'N/A'}</p>
+                <h5 class="font-semibold mt-4 mb-2">Items:</h5>
+                <ul class="list-disc list-inside">
+                    ${invoice.items.map(item => `<li>${item.name} (x${item.quantity}) - ${invoice.currency} ${item.price.toFixed(2)}</li>`).join('')}
+                </ul>
+                <p class="mt-4"><strong>Subtotal:</strong> ${invoice.currency} ${invoice.subtotal.toFixed(2)}</p>
+                <p><strong>Tax (${invoice.tax}%):</strong> ${invoice.currency} ${((invoice.subtotal * invoice.tax) / 100).toFixed(2)}</p>
+                <p><strong>Discount (${invoice.discount}%):</strong> ${invoice.currency} ${((invoice.subtotal * invoice.discount) / 100).toFixed(2)}</p>
+                <p class="text-2xl font-bold mt-2"><strong>Total:</strong> ${invoice.currency} ${invoice.total.toFixed(2)}</p>
+            `;
+            showMessage('Invoice details loaded!', 'info');
+            document.getElementById('historyContent').innerHTML = detailsHtml + `<button onclick="loadInvoices()" class="mt-4 bg-primary-color hover:bg-button-hover-bg text-on-surface-color text-sm py-1 px-3 rounded-md">Back to List</button>`;
+        } catch (error) {
+            console.error('Error viewing invoice details:', error.message);
+            showMessage('Error fetching invoice details. Check console for details.', 'error');
+        }
+    }
+
+    /**
+     * Opens the history modal and loads invoices.
+     */
+    window.openHistoryModal = function() {
+        document.getElementById('historyModal').style.display = 'flex';
+        loadInvoices(); // Load and display invoices when modal opens
+    }
+
+    /**
+     * Closes the history modal.
+     */
+    window.closeHistoryModal = function() {
+        document.getElementById('historyModal').style.display = 'none';
+    }
+
+    /**
+     * Exports the user's invoice history to a CSV file.
+     */
+    window.exportHistoryToCSV = async function() {
+      if (!isUserSubscribed) {
+          showMessage('Please subscribe to export history to CSV.', 'warning');
+          return;
+      }
+      if (!supabase || !currentUserId) {
+          showMessage('Cannot export history: Supabase not ready or user not authenticated.', 'warning');
+          return;
+      }
+
+      try {
+          const { data: invoices, error } = await supabase
+              .from('invoices')
+              .select('*')
+              .eq('user_id', currentUserId)
+              .order('created_at', { ascending: false });
+
+          if (error) throw error;
+          if (!invoices || invoices.length === 0) {
+              showMessage('No invoices to export.', 'info');
+              return;
+          }
+
+          // Define CSV headers
+          const headers = [
+              "Invoice ID", "Invoice Date", "Customer Name", "Customer Phone", "Customer Email",
+              "Currency", "Subtotal", "Tax Percent", "Discount Percent", "Total",
+              "Item Name", "Item Price", "Item Quantity", "Item Total"
+          ];
+
+          let csvContent = headers.join(',') + '\n';
+
+          // Iterate over each invoice and its items to create CSV rows
+          invoices.forEach(invoice => {
+              const baseRow = [
+                  `"${invoice.id}"`, // Enclose UUID in quotes
+                  `"${invoice.invoice_date}"`,
+                  `"${invoice.customer_name.replace(/"/g, '""')}"`, // Handle quotes in names
+                  `"${invoice.customer_phone || ''}"`,
+                  `"${invoice.customer_email || ''}"`,
+                  `"${invoice.currency}"`,
+                  invoice.subtotal.toFixed(2),
+                  invoice.tax.toFixed(2),
+                  invoice.discount.toFixed(2),
+                  invoice.total.toFixed(2)
+              ];
+
+              if (invoice.items && invoice.items.length > 0) {
+                  invoice.items.forEach(item => {
+                      const itemRow = [
+                          `"${item.name.replace(/"/g, '""')}"`,
+                          item.price.toFixed(2),
+                          item.quantity,
+                          item.total.toFixed(2)
+                      ];
+                      csvContent += [...baseRow, ...itemRow].join(',') + '\n';
+                  });
+              } else {
+                  // If no items, still record the main invoice data
+                  csvContent += [...baseRow, "", "", "", ""].join(',') + '\n'; // Add empty fields for item columns
+              }
+          });
+
+          // Create a Blob from the CSV content
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', `billsmint_invoices_${new Date().toISOString().split('T')[0]}.csv`);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showMessage('Invoice history exported to CSV successfully!', 'success');
+
+      } catch (error) {
+          console.error('Error exporting history to CSV:', error.message);
+          showMessage('Error exporting history to CSV. Check console for details.', 'error');
+      }
+    };
+
+
+    // Initialize the page on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Supabase first
+      initializeSupabase();
+
+      // Initial UI state setup (will be overridden by onAuthStateChange)
+      showUI();
+      changeLanguage();
+      updateCurrency();
+      document.getElementById('invoiceDate').valueAsDate = new Date(); // Set today's date
+      calculateSubtotal(); // Initial calculation
+
+      // Event listeners for changes
+      document.getElementById('language').addEventListener('change', changeLanguage);
+      document.getElementById('currency').addEventListener('change', updateCurrency);
+
+      // Event listener for customer info changes (optional, for real-time saving/validation)
+      document.getElementById('customerName').addEventListener('input', calculateSubtotal);
+      document.getElementById('customerPhone').addEventListener('input', calculateSubtotal);
+      document.getElementById('customerEmail').addEventListener('input', calculateSubtotal);
+      document.getElementById('invoiceDate').addEventListener('change', calculateSubtotal);
+    });
+  </script>
+</body>
+</html>
